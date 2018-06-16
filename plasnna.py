@@ -16,7 +16,9 @@ evolveParameters = {
   'neurotransmitter_binding_chance' = 0.5,
   'activation_threshold' = 1.0,
   'ngf_per_fire' = 0.1,
-  'weight_factor' = 0.25
+  'weight_factor' = 0.25,
+  'plasticity_threshold' = 2.0,
+  'plasticity_floor' = 0.2
   }
 
 
@@ -41,7 +43,9 @@ class Plasma():
 		#Fire neurons
 		for neuron in self.plasmaGrid:
 			neuron = self.plasmaGrid[neuron]
-			neuron.update(evolveParameters['activation_threshold'])
+			neuron.update(evolveParameters['activation_threshold'],
+				evolveParameters['plasticity_threshold'],
+				evolveParameters['plasticity_floor'])
 	  
 	    #Propagate signal through synapses
 		for neuron in self.plasmaGrid:
@@ -71,7 +75,7 @@ class Neuron():
 		self.alive = False
 		self.ngf = 0.0
     
-	def update(self, activationThreshold):
+	def update(self, activationThreshold, plasticityThreshold, plasticityFloor):
 		self.fired = False
 		for synapse in self.synapses:
 			if synapse.fired:
@@ -82,9 +86,14 @@ class Neuron():
   			self.activationScore = 0.0
   			self.ngf += ngf_per_fire
 
-  			if self.ngf >= plasticity_threshold:
+  			if self.ngf >= plasticityThreshold:
   				#Seek new outputs
   				self.plasticity = 'Forwards'
+
+  		else:
+  			if self.ngf < plasticityFloor:
+  				#Seek new inputs
+  				self.plasticity = 'Backwards'
       
 
 class Synapse():
