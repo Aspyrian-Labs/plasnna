@@ -14,8 +14,8 @@ import random
 
 evolveParameters = {
   'neurotransmitter_binding_chance' = 0.5,
-  'activation_threshold' = 1.0
-  'chance_to_bind' = 0.5
+  'activation_threshold' = 1.0,
+  'ngf_per_fire' = 0.1,
   'weight_factor' = 0.25
   }
 
@@ -38,16 +38,16 @@ class Plasma():
 				self.plasmaGrid[coords] = Neuron(coords=coords, outputNeuron=True)
         
 	def evolve(self, timeSteps=1000, rewardObservationLength=0.1, xData, yData, evolveParameters):
-		# Fire neurons
+		#Fire neurons
 		for neuron in self.plasmaGrid:
 			neuron = self.plasmaGrid[neuron]
 			neuron.update(evolveParameters['activation_threshold'])
 	  
-	        # Propagate signal through synapses
+	    #Propagate signal through synapses
 		for neuron in self.plasmaGrid:
 			neuron = self.plasmaGrid[neuron]
 	  	for synapse in neuron.synapses:
-	  		synapse.update(evolveParameters['change_to_bind'],
+	  		synapse.update(evolveParameters['neurotransmitter_binding_chance'],
 				accuracy, #euphamine probability
 				evolveParameters['weight_factor'])
 		return accuracy
@@ -80,6 +80,11 @@ class Neuron():
 		if self.activationScore > activationThreshold:
   			self.fired = True
   			self.activationScore = 0.0
+  			self.ngf += ngf_per_fire
+
+  			if self.ngf >= plasticity_threshold:
+  				#Seek new outputs
+  				self.plasticity = 'Forwards'
       
 
 class Synapse():
@@ -97,8 +102,3 @@ class Synapse():
 			if random.random() > chanceToBind:
 				if random.random() < euphamineProbability:
 					weight += (1.0 - weight)*weightFactor
-          
-    
-    
-    
-    
