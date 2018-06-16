@@ -17,10 +17,12 @@ evolveParameters = {
   'activation_threshold' = 1.0,
   'ngf_per_fire' = 0.1,
   'weight_factor' = 0.25,
-  'plasticity_threshold' = 2.0,
-  'plasticity_floor' = 0.2
+  'plasticity_threshold' = 1.5,
+  'plasticity_floor' = 0.2,
+  'neighbour_range' = 2,
+  'synapse_kill_threshold' = 0.2,
+  'spill_threshold' = 2.0
   }
-
 
 class Plasma():
 	def __init__(self, inputs, outputs, gridSize=(100, 100, 100)):
@@ -50,10 +52,49 @@ class Plasma():
 	    #Propagate signal through synapses
 		for neuron in self.plasmaGrid:
 			neuron = self.plasmaGrid[neuron]
-	  	for synapse in neuron.synapses:
-	  		synapse.update(evolveParameters['neurotransmitter_binding_chance'],
-				accuracy, #euphamine probability
-				evolveParameters['weight_factor'])
+			for synapse in neuron.synapses:
+				synapse.update(evolveParameters['neurotransmitter_binding_chance'],
+					accuracy, #euphamine probability
+					evolveParameters['weight_factor'],
+					evolveParameters['synapse_kill_threshold'])
+
+		neighbourRange = evolveParameters['neighbour_range']
+		for neuron in self.plasmaGrid:
+			neuronObj = self.plasmaGrid[neuron]
+			if neuronObj.plasticity == 'Forwards' or neuronObj.ngf > evolveParameters['spill_threshold']:
+				#Collect nearest neighbours
+				synapseCandidates = []
+				spillCandidates = []
+				for x in range(neuron[0] - neighbourRange, neuron[0] + neighbourRange):
+					for y in range(neuron[1] - neighbourRange, nweuron[1] + neighbourRange):
+						for z in range(neuron[2] - neighbourRange, neuron[2] + neighbourRange):
+							neighbour = self.plasmaGrid[(x,y,z)]
+							if neighbour.plasticity == 'Backwards':
+								synapseCandidates.append((x,y,z))
+							if neighbour.ngf < neuronObj.ngf:
+								spillCandidates.append((x,y,z))
+				
+				if neuronObj.plasticity == 'Forwards':
+					candidate = random.choice(synapseCandidates)
+					#Make new synapse (owned by recieving (candidate) neuron)
+					self.plasmaGrid[candidate].synapses.append(Synapse(inputNeuron=self.plasmaGrid[neuron], outputNeuron=self.plasmaGrid[candidate]))
+
+				if neuronObj.ngf > evolveParameters['spill_threshold']:
+					availableNgf = neuronObj.ngf - evolveParameters['spill_threshold']
+					
+					#Caclulate total ngf of neighbours
+					totalNgf = 0
+					for candidate in spillCandidates:
+						candidate = self.plasmaGrid[candidate]
+						totalNgf += candidate.ngf
+
+					#Distribute it to the most needy neurons
+					for candidate in spillCandidates:
+						candidate = self.plasmaGrid[candidate]
+						candidate.ngf += availableNgf * (candidate.ngf / totalNgf)
+
+
+
 		return accuracy
 
 
@@ -69,18 +110,24 @@ class Neuron():
     
 	def animate(self):
 		self.alive = True
-		self.ngf = 1.0
   
 	def apoptosis(self):
 		self.alive = False
 		self.ngf = 0.0
     
 	def update(self, activationThreshold, plasticityThreshold, plasticityFloor):
+		if not self.alive:
+			if self.ngf > 1.0:
+				self.animate()
+			else:
+				return
+
 		self.fired = False
 		for synapse in self.synapses:
 			if synapse.fired:
   			self.activationScore += synapse.weight
-    
+    	
+    	#Fire if excited
 		if self.activationScore > activationThreshold:
   			self.fired = True
   			self.activationScore = 0.0
@@ -89,12 +136,14 @@ class Neuron():
   			if self.ngf >= plasticityThreshold:
   				#Seek new outputs
   				self.plasticity = 'Forwards'
+  		#Suicide if negative ngf
+  		elif self.ngf <= 0.0:
+  			self.apoptosis()
+  			return
+  		#Seek new inputs
+  		elif self.ngf < plasticityFloor:
+  			self.plasticity = 'Backwards'
 
-  		else:
-  			if self.ngf < plasticityFloor:
-  				#Seek new inputs
-  				self.plasticity = 'Backwards'
-      
 
 class Synapse():
 	def __init__(self, inputNeuron=None, outputNeuron=None):
@@ -103,11 +152,16 @@ class Synapse():
 		self.weight = random.random()
 		self.fired = False
   
-	def update(self, chanceToBind, euphamineProbability, weightFactor):
+	def update(self, chanceToBind, euphamineProbability, weightFactor, synapseKillThreshold):
 		self.fired = False
 		if self.inputNeuron.fired:
 			self.fired = True
       
 			if random.random() > chanceToBind:
 				if random.random() < euphamineProbability:
-					weight += (1.0 - weight)*weightFactor
+					self.weight += (1.0 - self.weight)*weightFactor
+				else:
+					self.weight -= (1.0 - self.weight)*weightFactor
+		elif self.weight < synapseKillThreshold:
+			self.outputNeuron.synapses.remove(self) #should be garbage collected
+
