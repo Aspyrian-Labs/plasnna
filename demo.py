@@ -3,7 +3,7 @@ import pickle
 
 #load processed data and labels with pickle
 
-nn = pnn.Plasma(data, labels)
-acc = nn.evolve()
+nn = pnn.Plasma(data[0].shape, labels[0].shape)
+acc = nn.evolve(xData=data, yData=labels)
 
 print(acc)
