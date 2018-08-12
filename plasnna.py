@@ -31,6 +31,8 @@ class Plasma():
 		self.outputs = outputs
 		self.gridSize = gridSize
 		self.plasmaGrid = {}
+		self.inputCoords = []
+		self.outputCoords = []
 		for x in range(gridSize[0]):
 			for y in range(gridSize[1]):
 				for z in range(gridSize[2]):
@@ -40,20 +42,33 @@ class Plasma():
 			for y in range(inputs[1]):
 				coords = (x, y, -1)
 				self.plasmaGrid[coords] = Neuron(coords=coords, inputNeuron=True)
+				self.inputCoords.append(coords)
 		for x in range(outputs[0]):
 			for y in range(outputs[1]):
 				coords = (x, y, gridSize[2]+1)
 				self.plasmaGrid[coords] = Neuron(coords=coords, outputNeuron=True)
+				self.outputCoords.append(coords)
         
 	def evolve(self, timeSteps=1000, rewardObservationLength=0.1, xData, yData, evolveParameters):
+		#Iterate over batch
 		for i, dat in enumerate(xData):
-			#Map ydata onto output neurons to assess accuracy
-			# - same for xdata onto input neurons
+			#Convert data to fireRate for input layer (assume normalised data)
+			assert xData[0].shape == self.inputs, 'Input data shape must match input layer shape.'
+			for c in self.inputCoords:
+				self.plasmaGrid[c].rate = int(1.0/xData[i][c[0]][c[1]]) #! currently cutoff scales with timeSteps
+																		   #! requires 2D data
+			#Set up output recording (!NB: for classifiers only for now)
+			assert yData[0].shape == self.outputs, 'Output data shape must match output layer shape.'
+			outputRecord = {}
+			for c in self.outputCoords:
+				outputRecord[c] = [yData[i], 0] #increment counter for each correct classification
 
-
+			#Start time evolution
+			currentAccuracy = 0
+			accuracyRecord = []
 			for t in range(timeSteps):
 				#Initial growth promotion: output layer requests connections
-				if self.accuracy == 0.0:
+				if currentAccuracy == 0.0:
 					for x in range(self.outputs[0]):
 						for y in range(self.outputs[1]):
 							coords = (x, y, self.gridSize[2]+1)
@@ -64,14 +79,15 @@ class Plasma():
 					neuron = self.plasmaGrid[neuron]
 					neuron.update(evolveParameters['activation_threshold'],
 						evolveParameters['plasticity_threshold'],
-						evolveParameters['plasticity_floor'])
+						evolveParameters['plasticity_floor'],
+						t)
 			  
 			    #Propagate signal through synapses
 				for neuron in self.plasmaGrid:
 					neuron = self.plasmaGrid[neuron]
 					for synapse in neuron.synapses:
 						synapse.update(evolveParameters['neurotransmitter_binding_chance'],
-							self.accuracy, #euphamine probability
+							currentAccuracy, #euphamine probability
 							evolveParameters['weight_factor'],
 							evolveParameters['synapse_kill_threshold'])
 
@@ -110,6 +126,17 @@ class Plasma():
 								candidate = self.plasmaGrid[candidate]
 								candidate.ngf += availableNgf * (candidate.ngf / totalNgf)
 
+				#Verify output
+				totalCorrect = 0
+				for i, c in enumerate(self.outputCoords):
+					if self.plasmaGrid[c].fired and outputRecord[c][0]:
+						outputRecord[c][1] += 1
+						totalCorrect += 1
+				currentAccuracy = float(totalCorrect)/len(self.outputCoords)
+				accuracyRecord.append(currentAccuracy)
+
+			#After time evolution:
+			self.accuracy = sum(accuracyRecord)/len(accuracyRecord)	
 		return self.accuracy
 
 
