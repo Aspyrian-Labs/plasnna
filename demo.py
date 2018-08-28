@@ -15,3 +15,4 @@ nn = pnn.Plasma(data[0].shape, (labels[0].shape[0],1))
 acc = nn.evolve(xData=data, yData=labels)
 
 print(acc)
+

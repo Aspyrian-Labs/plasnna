@@ -50,9 +50,10 @@ class Plasma():
 				self.inputCoords.append(coords)
 		for x in range(outputs[0]):
 			for y in range(outputs[1]):
-				coords = (x, y, gridSize[2]+1)
+				coords = (x, y, gridSize[2])
 				self.plasmaGrid[coords] = Neuron(coords=coords, outputNeuron=True)
 				self.outputCoords.append(coords)
+		self.vis = Visualiser()
         
 	def evolve(self, xData, yData, evolveParameters=evolveParameters, epochs=1, timeSteps=1000, rewardObservationLength=0.1):
 		for e in range(epochs):
@@ -79,12 +80,13 @@ class Plasma():
 					if currentAccuracy == 0.0:
 						for x in range(self.outputs[0]):
 							for y in range(self.outputs[1]):
-								coords = (x, y, self.gridSize[2]+1)
+								coords = (x, y, self.gridSize[2])
 								self.plasmaGrid[coords].ngf = 5.0 #enough to spill into preceeding layers
 
 					#Fire neurons
-					for neuron in self.plasmaGrid:
-						neuron = self.plasmaGrid[neuron]
+					for coord in self.plasmaGrid:
+						# print("coord = ", coord)
+						neuron = self.plasmaGrid[coord]
 						neuron.update(evolveParameters['ngf_per_fire'],
 							evolveParameters['activation_threshold'],
 							evolveParameters['plasticity_threshold'],
@@ -92,6 +94,8 @@ class Plasma():
 							evolveParameters['ngf_decay_factor'],
 							t,
 							currentAccuracy)
+						if (coord[2] > 0): # make sure we aren't in the input layer
+							self.vis.update(coord, neuron.fired)
 				  
 				    #Propagate signal through synapses
 					numSynapses = 0
@@ -147,15 +151,50 @@ class Plasma():
 					#Verify output
 					totalCorrect = 0
 					for i, c in enumerate(self.outputCoords):
+						self.vis.grid[10,c[1]] += 1
 						if self.plasmaGrid[c].fired and outputRecord[c][0]:
 							outputRecord[c][1] += 1
 							totalCorrect += 1
 					currentAccuracy = float(totalCorrect)/len(self.outputCoords)
 					accuracyRecord.append(currentAccuracy)
 
+					self.vis.show()
+					self.vis.reset()
+
 			#After time evolution:
 			self.accuracy = sum(accuracyRecord)/len(accuracyRecord)	
 		return self.accuracy
+
+	def visualise(self):
+		self.plasmaGrid[coords]
+
+
+class Visualiser():
+	def __init__(self):
+		self.grid = np.zeros((11,10))
+
+	def update(self, neuronCoord, fired):
+		y = neuronCoord[1]
+		z = neuronCoord[2]
+		if fired:
+			self.grid[z,y] += 1
+
+	def show(self):
+		print("\n")
+		print("0 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,0], self.grid[1,0], self.grid[2,0], self.grid[3,0], self.grid[4,0], self.grid[5,0], self.grid[6,0], self.grid[7,0], self.grid[8,0], self.grid[9,0], self.grid[10,0]))
+		print("1 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,1], self.grid[1,1], self.grid[2,1], self.grid[3,1], self.grid[4,1], self.grid[5,1], self.grid[6,1], self.grid[7,1], self.grid[8,1], self.grid[9,1], self.grid[10,1]))
+		print("2 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,2], self.grid[1,2], self.grid[2,2], self.grid[3,2], self.grid[4,2], self.grid[5,2], self.grid[6,2], self.grid[7,2], self.grid[8,2], self.grid[9,2], self.grid[10,2]))
+		print("3 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,3], self.grid[1,3], self.grid[2,3], self.grid[3,3], self.grid[4,3], self.grid[5,3], self.grid[6,3], self.grid[7,3], self.grid[8,3], self.grid[9,3], self.grid[10,3]))
+		print("4 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,4], self.grid[1,4], self.grid[2,4], self.grid[3,4], self.grid[4,4], self.grid[5,4], self.grid[6,4], self.grid[7,4], self.grid[8,4], self.grid[9,4], self.grid[10,4]))
+		print("5 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,5], self.grid[1,5], self.grid[2,5], self.grid[3,5], self.grid[4,5], self.grid[5,5], self.grid[6,5], self.grid[7,5], self.grid[8,5], self.grid[9,5], self.grid[10,5]))
+		print("6 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,6], self.grid[1,6], self.grid[2,6], self.grid[3,6], self.grid[4,6], self.grid[5,6], self.grid[6,6], self.grid[7,6], self.grid[8,6], self.grid[9,6], self.grid[10,6]))
+		print("7 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,7], self.grid[1,7], self.grid[2,7], self.grid[3,7], self.grid[4,7], self.grid[5,7], self.grid[6,7], self.grid[7,7], self.grid[8,7], self.grid[9,7], self.grid[10,7]))
+		print("8 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,8], self.grid[1,8], self.grid[2,8], self.grid[3,8], self.grid[4,8], self.grid[5,8], self.grid[6,8], self.grid[7,8], self.grid[8,8], self.grid[9,8], self.grid[10,8]))
+		print("9 | %3d | %3d %3d %3d %3d %3d %3d %3d %3d %3d %3d | %3d |" % (-1, self.grid[0,9], self.grid[1,9], self.grid[2,9], self.grid[3,9], self.grid[4,9], self.grid[5,9], self.grid[6,9], self.grid[7,9], self.grid[8,9], self.grid[9,9], self.grid[10,9]))
+		print("\n")
+
+	def reset(self):		
+		self.grid = np.zeros((11,10))
 
 
 class Neuron():
