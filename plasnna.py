@@ -174,10 +174,10 @@ class Visualiser():
 		self.grid = np.zeros((11,10))
 
 	def update(self, neuronCoord, fired):
-		y = neuronCoord[1]
+		x = neuronCoord[0]
 		z = neuronCoord[2]
 		if fired:
-			self.grid[z,y] += 1
+			self.grid[z,x] += 1
 
 	def show(self):
 		print("\n")
