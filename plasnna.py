@@ -94,7 +94,7 @@ class Plasma():
 							evolveParameters['ngf_decay_factor'],
 							t,
 							currentAccuracy)
-						if (coord[2] > 0): # make sure we aren't in the input layer
+						if (coord[2] >= 0): # make sure we aren't in the input layer
 							self.vis.update(coord, neuron.fired)
 				  
 				    #Propagate signal through synapses
@@ -109,6 +109,7 @@ class Plasma():
 								evolveParameters['synapse_kill_threshold'])
 					print(numSynapses)
 
+					# Plasticity: form new connections between compatible neurons, distribute excess NGF
 					neighbourRange = evolveParameters['neighbour_range']
 					for neuron in self.plasmaGrid:
 						neuronObj = self.plasmaGrid[neuron]
@@ -151,7 +152,7 @@ class Plasma():
 					#Verify output
 					totalCorrect = 0
 					for i, c in enumerate(self.outputCoords):
-						self.vis.grid[10,c[1]] += 1
+						# self.vis.grid[10,c[1]] += 1
 						if self.plasmaGrid[c].fired and outputRecord[c][0]:
 							outputRecord[c][1] += 1
 							totalCorrect += 1
@@ -164,10 +165,6 @@ class Plasma():
 			#After time evolution:
 			self.accuracy = sum(accuracyRecord)/len(accuracyRecord)	
 		return self.accuracy
-
-	def visualise(self):
-		self.plasmaGrid[coords]
-
 
 class Visualiser():
 	def __init__(self):
